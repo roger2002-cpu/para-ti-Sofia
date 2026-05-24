@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Project Hail Mary - Simulador Cosmológico Avanzado</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background-color: #000; overflow: hidden;
+            font-family: 'Segoe UI', monospace, sans-serif; user-select: none; touch-action: none;
+        }
+        canvas { display: block; }
+        
+        /* PANTALLA DE CARGA INICIAL */
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #090014 0%, #000 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100; color: white; text-align: center; transition: opacity 0.5s ease;
+        }
+        button {
+            padding: 15px 40px; font-size: 18px; background: transparent;
+            color: #00ffcc; border: 2px solid #00ffcc; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 3px; transition: all 0.3s; margin-top: 20px;
+        }
+        button:hover { background: #00ffcc; color: black; box-shadow: 0 0 25px #00ffcc; }
+        
+        /* INTERFAZ HUD DEL HACKEO */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; box-sizing: border-box;
+            border: 15px solid rgba(0, 255, 204, 0.03); display: none; z-index: 10;
+        }
+        #reticula {
+            position: absolute; top: 50%; left: 50%; width: 30px; height: 30px;
+            transform: translate(-50%, -50%); border: 1px dashed rgba(0, 255, 204, 0.4);
+            border-radius: 50%; display: none; z-index: 10;
+        }
+        
+        #info {
+            position: absolute; bottom: 20px; right: 20px;
+            color: rgba(0, 255, 204, 0.4); font-size: 10px;
+            letter-spacing: 1px; text-transform: uppercase; pointer-events: none; display: none;
+        }
+
+        /* ANOMALÍA GLITCH SCREEN */
+        #anomaly-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 90; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            color: #ff0055; text-align: center; padding: 20px; box-sizing: border-box;
+        }
+        .glitch-text {
+            font-size: 16px; letter-spacing: 2px; line-height: 1.8;
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        /* BOTÓN SUPERIOR DE LOCALIZACIÓN */
+        #radar-btn {
+            position: absolute; top: 20px; right: 20px; background: rgba(0, 255, 204, 0.1);
+            color: #00ffcc; border: 1px solid #00ffcc; font-size: 11px; padding: 8px 15px;
+            cursor: pointer; display: none; z-index: 50; letter-spacing: 1px; transition: all 0.3s;
+        }
+
+        /* CAPA ADICIONAL EFECTO SOBRECARGA */
+        #event-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(255, 0, 170, 0.12) 0%, rgba(0,0,0,0) 75%);
+            pointer-events: none; opacity: 0; transition: opacity 1s ease; z-index: 5;
+        }
+
+        /* TRANSMISIÓN ENCRIPTADA EXTRA */
+        #transmission-btn {
+            position: absolute; top: 20px; left: 20px; background: rgba(255, 0, 85, 0.1);
+            color: #ff0055; border: 1px solid #ff0055; font-size: 11px; padding: 8px 15px;
+            cursor: pointer; display: none; z-index: 50; letter-spacing: 1px;
+            animation: border-glow 2s infinite;
+        }
+        #message-box {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; max-width: 400px; background: radial-gradient(circle, rgba(15, 5, 25, 0.98) 0%, rgba(5, 1, 10, 0.98) 100%);
+            border: 1px solid #ff00aa; padding: 25px; color: #fff; text-align: center;
+            display: none; z-index: 60; box-shadow: 0 0 35px rgba(255, 0, 170, 0.35);
+            font-size: 14px; line-height: 1.6; border-radius: 4px;
+        }
+        #close-msg-btn {
+            margin-top: 20px; padding: 6px 15px; font-size: 11px;
+            color: #ff00aa; border: 1px solid #ff00aa; background: transparent; cursor: pointer;
+        }
+
+        /* CUADRO DE MENSAJE CON EFECTO DE ESPACIO PROFUNDO / POLVO CÓSMICO */
+        #planet-message-box {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; max-width: 360px; 
+            background: radial-gradient(circle, rgba(10, 25, 40, 0.96) 0%, rgba(2, 8, 18, 0.98) 100%);
+            border: 2px solid rgba(0, 255, 204, 0.85); padding: 22px; color: #fff; text-align: center;
+            display: none; z-index: 70; 
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.25), inset 0 0 15px rgba(0, 255, 204, 0.15);
+            font-size: 14px; line-height: 1.6; border-radius: 8px;
+            backdrop-filter: blur(6px);
+            transition: all 0.3s ease;
+        }
+        #planet-message-box h3 {
+            margin: 0 0 12px 0; color: #00ffcc; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
+        }
+        #planet-text {
+            margin-bottom: 18px; font-style: italic; color: #eefbff; letter-spacing: 0.5px;
+        }
+        #close-planet-btn {
+            padding: 6px 18px; font-size: 11px; color: #00ffcc; border: 1px solid #00ffcc;
+            background: transparent; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+            border-radius: 4px; transition: all 0.2s ease;
+        }
+        #close-planet-btn:hover { background: rgba(0, 255, 204, 0.2); box-shadow: 0 0 10px #00ffcc; }
+
+        /* NOTIFICACIÓN EMERGENTE */
+        #interaction-toast {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 0, 170, 0.25); border: 1px solid #ff00aa;
+            padding: 8px 15px; color: #fff; font-size: 11px; border-radius: 20px;
+            letter-spacing: 1px; display: none; z-index: 40; pointer-events: none;
+            box-shadow: 0 0 15px rgba(255, 0, 170, 0.4);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; } 100% { opacity: 1; text-shadow: 0 0 10px #ff0055; }
+        }
+        @keyframes border-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(255,0,85,0.2); }
+            50% { box-shadow: 0 0 15px rgba(255,0,85,0.6); background: rgba(255, 0, 85, 0.25); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>PROYECTO 02 MAYO 2005</h1>
+        <p>ENTORNO DE SIMULACIÓN CUÁNTICA Y GRAVITACIONAL</p>
+        <button id="startButton">Iniciar Simulación</button>
+    </div>
+
+    <div id="anomaly-screen">
+        <div class="glitch-text">
+            ⚠️ <strong>ANOMALÍA DETECTADA EN EL SISTEMA</strong><br><br>
+            [GRAVITY_WARN]: El núcleo central de esta galaxia ha sido alterado.<br>
+            [ORIGEN]: Tu presencia detectada en el sector.<br><br>
+            Reconfigurando espacio-tiempo... Por favor espera.
+        </div>
+    </div>
+
+    <div id="hud"></div>
+    <div id="reticula"></div>
+    <div id="info">(Se que nunca te lo dije, pero te extraño demaciado)!Arrastra para rotar. Usa la ruedita para Zoom. ¡Toca el Agujero Negro y los planetas</div>
+    <div id="interaction-toast">⚡ PULSO DETECTADO: El núcleo cuántico está reaccionando.</div>
+    <div id="event-overlay"></div>
+
+    <button id="radar-btn">🪐 LOCALIZAR PLANETA SOFÍA</button>
+
+    <button id="transmission-btn">✉️ TRANSMISIÓN ENCRIPTADA</button>
+    <div id="message-box">
+        <div style="color: #ff0055; font-size: 11px; letter-spacing: 2px; margin-bottom: 10px;">-- MENSAJE ENTRANTE --</div>
+        Programé esta galaxia con miles de estrellas, órbitas inclinadas y un agujero negro funcional... pero ninguna de esas fuerzas compite con lo mucho que te quiero. Disfruta el viaje por mi espacio.
+        <br>
+        <button id="close-msg-btn">CERRAR TRANSMISIÓN</button>
+    </div>
+
+    <div id="planet-message-box">
+        <h3 id="planet-title">Datos del Sector</h3>
+        <div id="planet-text">Mensaje estelar por defecto...</div>
+        <button id="close-planet-btn">Cerrar Enlace</button>
+    </div>
+
+    <audio id="bgMusic" loop>
+        <source src="lv.mp3.mpeg" type="audio/mpeg">
+    </audio>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let galaxyGeometry, galaxyPoints, nebulaGas, asteroidBelt, blackHoleDisk, blackHoleCore;
+        let constellationLines = null;
+        let nameParticles = null;
+        let alertHologramPlane = null; 
+
+        const planets = [];
+        const textBurstParticles = []; 
+        let bhClickCount = 0; 
+
+        let targetPlanet = null; 
+        let lockCameraOnPlanet = false;
+        let eventTriggered = false;
+        let cameraReachedTarget = false; 
+        let planetSpinSpeed = 0.005; 
+
+        // NUEVAS VARIABLES PARA EL ENFOQUE INTERACTIVO DE LOS DEMÁS PLANETAS
+        let activeSelectedPlanet = null;
+        let lockCameraOnSelected = false;
+
+        const comets = [
+            { mesh: null, geoTail: null, angle: 0, a: 25, b: 15, speed: 0.003, yPos: 1.5, color: '#00ffff', maxTail: 50, positions: [] },
+            { mesh: null, geoTail: null, angle: 1.5, a: 38, b: 22, speed: 0.002, yPos: -2.5, color: '#33ff33', maxTail: 65, positions: [] },
+            { mesh: null, geoTail: null, angle: 3.0, a: 18, b: 28, speed: 0.004, yPos: 3.0, color: '#ff00ff', maxTail: 45, positions: [] },
+            { mesh: null, geoTail: null, angle: 4.5, a: 45, b: 12, speed: 0.0015, yPos: -1.0, color: '#ffff00', maxTail: 70, positions: [] },
+            { mesh: null, geoTail: null, angle: 0.8, a: 30, b: 30, speed: 0.0035, yPos: 0.5, color: '#ffffff', maxTail: 55, positions: [] }
+        ];
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        const startButton = document.getElementById('startButton');
+        const overlay = document.getElementById('overlay');
+        const anomalyScreen = document.getElementById('anomaly-screen');
+        const radarBtn = document.getElementById('radar-btn');
+        const eventOverlay = document.getElementById('event-overlay');
+        const transmissionBtn = document.getElementById('transmission-btn');
+        const messageBox = document.getElementById('message-box');
+        const closeMsgBtn = document.getElementById('close-msg-btn');
+        const audio = document.getElementById('bgMusic');
+        const interactionToast = document.getElementById('interaction-toast');
+
+        // Elementos de la UI de planetas
+        const planetMessageBox = document.getElementById('planet-message-box');
+        const planetTitle = document.getElementById('planet-title');
+        const planetText = document.getElementById('planet-text');
+        const closePlanetBtn = document.getElementById('close-planet-btn');
+
+        const planetDedications = [
+            "Amo tus hermosos ojos cafés, brillan más que cualquier supernova del sector.",
+            "En todo este vasto mapa cuántico, mi mente siempre orbita alrededor de ti.",
+            "Ni la gravedad del agujero negro central puede arrastrarme tan fuerte como tu sonrisa.",
+            "Cada estrella en este simulador representa un segundo que paso extrañándote.",
+            "Cruzaría mil cinturones de asteroides solo para asegurarme de que estás bien.",
+            "Tus palabras tienen más fuerza orbital que cualquier gigante gaseoso del sistema.",
+            "Mi universo estaba frío y oscuro hasta que apareciste tú a encender los motores.",
+            "Eres el código perfecto en un mundo lleno de anomalías y glitches.",
+            "La física se rinde ante nosotros; no hay ecuación que explique lo mucho que te quiero.",
+            "Incluso en el vacío absoluto del espacio exterior, tu recuerdo resuena con fuerza.",
+            "Eres la constante cosmológica que mantiene mi galaxia en perfecto equilibrio.",
+            "Si el tiempo es relativo, un segundo lejos de ti se siente como una eternidad cósmica.",
+            "Podría escanear un millón de galaxias y jamás encontraría a alguien tan especial.",
+            "El espacio interestelar es enorme, pero todo mi amor por ti no cabe ni en el infinito.",
+            "Eres el destello de luz más brillante que cruzó por mi telescopio.",
+            "Nuestros vectores estaban destinados a colisionar y crear algo maravilloso.",
+            "No necesito trazar constelaciones si puedo perderme siguiendo la línea de tus labios.",
+            "Incluso la estrella más masiva se apagaría de envidia al ver la luz de tus ojos.",
+            "Programar galaxias es fácil; descifrar el magnetismo de tu presencia es un misterio hermoso.",
+            "Cada latido de mi núcleo cuántico lleva escrito tu nombre encriptado.",
+            "Mi órbita favorita siempre será caminar de tu mano en cualquier rincón del mundo.",
+            "Eres la energía oscura que expande mi felicidad cada vez que sonríes.",
+            "Un viaje espacial no vale la pena si tú no eres mi destino final."
+        ];
+
+        function createGlowTexture(innerColor, outerColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            grad.addColorStop(0, innerColor); grad.addColorStop(0.2, innerColor);
+            grad.addColorStop(0.6, outerColor); grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, 128, 128);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function generatePlanetTexture(base, detail, type, nameLabel = "") {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = base; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (type === 'gas' || type === 'anillo' || type === 'supergas') {
+                for (let y = 0; y < canvas.height; y++) {
+                    let noise = Math.sin(y * 0.07) * Math.cos(y * 0.03);
+                    if (Math.random() > 0.12) {
+                        ctx.fillStyle = detail;
+                        ctx.globalAlpha = Math.abs(noise) * 0.45 + (Math.random() * 0.08);
+                        ctx.fillRect(0, y, canvas.width, 1);
+                    }
+                }
+            } else if (type === 'cyber' || type === 'cristal') {
+                ctx.strokeStyle = detail; ctx.lineWidth = 3;
+                for (let i = 0; i < 45; i++) {
+                    ctx.globalAlpha = Math.random() * 0.30;
+                    ctx.strokeRect(Math.random()*canvas.width, Math.random()*canvas.height, Math.random()*180, Math.random()*180);
+                }
+            } else {
+                for (let i = 0; i < 95; i++) {
+                    ctx.fillStyle = detail; ctx.globalAlpha = Math.random() * 0.22;
+                    ctx.beginPath(); ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 70 + 20, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+
+            if (nameLabel !== "") {
+                ctx.globalAlpha = 1.0; 
+                ctx.font = "bold 72px 'Segoe UI', Arial, sans-serif";
+                ctx.fillStyle = "#ffffff"; 
+                ctx.shadowColor = "#ff00aa"; 
+                ctx.shadowBlur = 35;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(nameLabel, 256, 256); 
+                ctx.fillText(nameLabel, 768, 256); 
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createHologramAlertTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = "rgba(10, 0, 15, 0.88)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#ff00aa"; ctx.lineWidth = 4; ctx.setLineDash([8, 4]);
+            ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+
+            ctx.font = "bold 18px Segoe UI, monospace"; ctx.fillStyle = "#ff0055";
+            ctx.fillText("⚠️ CRITICAL SYSTEM OVERLOAD", 30, 35);
+
+            ctx.fillStyle = "rgba(255, 0, 85, 0.2)"; ctx.setLineDash([]);
+            ctx.fillRect(460, 15, 35, 30);
+            ctx.strokeStyle = "#ff0055"; ctx.strokeRect(460, 15, 35, 30);
+            ctx.font = "bold 16px monospace"; ctx.fillStyle = "#ffffff";
+            ctx.fillText("X", 472, 36);
+
+            ctx.font = "14px Segoe UI, sans-serif"; ctx.fillStyle = "#ffccff";
+            const textLines = [
+                "La computadora de navegación no puede procesar los vectores",
+                "gravitacionales de este cuerpo celeste. El núcleo irradia una",
+                "atracción inexplicable."
+            ];
+            textLines.forEach((line, i) => ctx.fillText(line, 30, 70 + (i * 22)));
+
+            ctx.font = "bold 14px Segoe UI, sans-serif"; ctx.fillStyle = "#ff00aa";
+            ctx.fillText("Razón: Demasiada belleza detectada en el sector sofia.", 30, 155);
+
+            ctx.font = "12px monospace"; ctx.fillStyle = "#00ffcc";
+            ctx.fillText("> COMP_ID: SC-02 (Planeta Sofia)", 30, 195);
+            ctx.fillText("> STATUS: Órbita Sincronizada con el Eje Central", 30, 213);
+            ctx.fillText("> NAV_MSG: Eres la fuerza que hace girar mi galaxia.", 30, 231);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2('#010003', 0.012);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.05, 320);
+            camera.position.set(0, 40, 80);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; controls.dampingFactor = 0.05;
+            controls.enableZoom = true; controls.minDistance = 2.5; controls.maxDistance = 190;
+            controls.rotateSpeed = 0.6;
+
+            const blackHoleLight = new THREE.PointLight('#ffbb44', 95, 130, 0.3);
+            blackHoleLight.position.set(0, 0, 0); scene.add(blackHoleLight);
+
+            const ambientLight = new THREE.AmbientLight('#2b2254', 1.8); scene.add(ambientLight);
+
+            buildSupermassiveBlackHole();
+            buildStructuredGalaxy();
+            buildQuantumNebulas();
+            buildStarClusters();
+            buildAsteroidBelt();
+            buildComets(); 
+            buildAdvancedPlanets();
+            buildConstellationLines();
+            buildFloatingNameRing();
+
+            const alertGeo = new THREE.PlaneGeometry(3.2, 1.6);
+            const alertMat = new THREE.MeshBasicMaterial({
+                map: createHologramAlertTexture(), transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false
+            });
+            alertHologramPlane = new THREE.Mesh(alertGeo, alertMat);
+            alertHologramPlane.name = "hologram_alert"; 
+            scene.add(alertHologramPlane);
+
+            setupInputs();
+            animate();
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function buildSupermassiveBlackHole() {
+            const bhGroup = new THREE.Group();
+            
+            blackHoleCore = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 32), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+            blackHoleCore.name = "black_hole_target";
+            bhGroup.add(blackHoleCore);
+
+            const pCount = 18000; const geo = new THREE.BufferGeometry(); const pos = new Float32Array(pCount * 3); const cols = new Float32Array(pCount * 3);
+            const gold = new THREE.Color('#ffaa00'); const neonPurp = new THREE.Color('#ff0055');
+
+            for(let i=0; i<pCount; i++) {
+                const i3 = i * 3; const r = 2.2 + Math.random() * 5.0; const theta = Math.random() * Math.PI * 2;
+                pos[i3] = Math.cos(theta) * r; pos[i3+1] = (Math.random() - 0.5) * 0.12; pos[i3+2] = Math.sin(theta) * r;
+                const mix = gold.clone().lerp(neonPurp, (r - 2.2)/5.0);
+                cols[i3] = mix.r; cols[i3+1] = mix.g; cols[i3+2] = mix.b;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+            
+            blackHoleDisk = new THREE.Points(geo, new THREE.PointsMaterial({
+                size: 0.05, vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, map: createGlowTexture('#ffffff', '#ffaa00')
+            }));
+            blackHoleDisk.name = "black_hole_target";
+            
+            bhGroup.add(blackHoleDisk); 
+            scene.add(bhGroup);
+        }
+
+        function buildStructuredGalaxy() {
+            const count = 140000; galaxyGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3); const colors = new Float32Array(count * 3);
+            const colorInside = new THREE.Color('#ff00aa'); const colorOutside = new THREE.Color('#00ffcc');
+
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3; const radius = 2.5 + Math.pow(Math.random(), 2.2) * 60;
+                const branchAngle = ((i % 4) / 4) * Math.PI * 2; const spiralFactor = radius * 0.28; 
+                positions[i3] = Math.cos(branchAngle + spiralFactor) * radius + (Math.random() - 0.5) * 0.35 * radius;
+                positions[i3 + 1] = (Math.random() - 0.5) * 0.05 * radius;
+                positions[i3 + 2] = Math.sin(branchAngle + spiralFactor) * radius + (Math.random() - 0.5) * 0.35 * radius;
+                const mixed = colorInside.clone().lerp(colorOutside, radius / 60);
+                colors[i3] = mixed.r; colors[i3 + 1] = mixed.g; colors[i3 + 2] = mixed.b;
+            }
+            galaxyGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            galaxyGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            galaxyPoints = new THREE.Points(galaxyGeometry, new THREE.PointsMaterial({ size: 0.035, vertexColors: true, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
+            scene.add(galaxyPoints);
+        }
+
+        function buildQuantumNebulas() {
+            const count = 1600; const geo = new THREE.BufferGeometry(); const pos = new Float32Array(count * 3); const cols = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3; pos[i3] = (Math.random() - 0.5) * 110; pos[i3 + 1] = (Math.random() - 0.5) * 16; pos[i3 + 2] = (Math.random() - 0.5) * 110;
+                const rand = Math.random();
+                if(rand < 0.33) { cols[i3]=0.0; cols[i3+1]=0.8; cols[i3+2]=1.0; }
+                else if (rand < 0.66) { cols[i3]=0.6; cols[i3+1]=0.0; cols[i3+2]=1.0; }
+                else { cols[i3]=1.0; cols[i3+1]=0.0; cols[i3+2]=0.6; }
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+            nebulaGas = new THREE.Points(geo, new THREE.PointsMaterial({ size: 6.5, transparent: true, opacity: 0.04, blending: THREE.AdditiveBlending, vertexColors: true, depthWrite: false, map: createGlowTexture('#ffffff', '#4a0082') }));
+            scene.add(nebulaGas);
+        }
+
+        function buildStarClusters() {
+            const clusterCenters = [new THREE.Vector3(22, 1, -22), new THREE.Vector3(-28, -1, 18), new THREE.Vector3(15, 2, 35)];
+            clusterCenters.forEach(center => {
+                const pCount = 350; const geo = new THREE.BufferGeometry(); const pos = new Float32Array(pCount * 3);
+                for(let i=0; i<pCount; i++) {
+                    const i3 = i * 3; pos[i3] = center.x + (Math.random() - 0.5) * 4.0; pos[i3+1] = center.y + (Math.random() - 0.5) * 0.9; pos[i3+2] = center.z + (Math.random() - 0.5) * 4.0;
+                }
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: '#00ffff', size: 0.1, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, map: createGlowTexture('#ffffff', '#00ffff') })));
+            });
+        }
+
+        function buildAsteroidBelt() {
+            const aCount = 8500; const geo = new THREE.BufferGeometry(); const pos = new Float32Array(aCount * 3);
+            for(let i=0; i<aCount; i++) {
+                const i3 = i * 3; const r = 13.0 + Math.random() * 3.0; const theta = Math.random() * Math.PI * 2;
+                pos[i3] = Math.cos(theta) * r; pos[i3+1] = (Math.random() - 0.5) * 0.35; pos[i3+2] = Math.sin(theta) * r;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            asteroidBelt = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#9c8e7c', size: 0.05, transparent: true, opacity: 0.75 }));
+            scene.add(asteroidBelt);
+        }
+
+        function buildComets() {
+            comets.forEach(comet => {
+                comet.mesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+                scene.add(comet.mesh);
+                
+                comet.geoTail = new THREE.BufferGeometry();
+                comet.geoTail.setAttribute('position', new THREE.BufferAttribute(new Float32Array(comet.maxTail * 3), 3));
+                const tailPoints = new THREE.Points(comet.geoTail, new THREE.PointsMaterial({
+                    color: comet.color, size: 0.08, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending
+                }));
+                scene.add(tailPoints);
+            });
+        }
+
+        function buildAdvancedPlanets() {
+            // SE HA CORREGIDO EL TAMAÑO (RADIO) DE LOS PLANETAS PEQUEÑOS (PASARON DE ~0.35 A ~0.75+)
+            const planetData = [
+                { r: 0.75, dist: 5.5, speed: 0.005, base: '#ff3300', detail: '#ffff00', type: 'volcan', inc: 0.12 }, 
+                { r: 1.15, dist: 9.8, speed: 0.002, base: '#ff00bb', detail: '#ffffff', type: 'gas', inc: -0.08, name: "SOFÍA" }, 
+                { r: 1.70, dist: 18.5, speed: -0.0022, base: '#440099', detail: '#00ffff', type: 'supergas', inc: 0.25 }, 
+                { r: 0.85, dist: 22.5, speed: 0.0015, base: '#00ff66', detail: '#ffffff', type: 'cyber', inc: -0.15 }, 
+                { r: 2.15, dist: 27.5, speed: -0.0011, base: '#cc6600', detail: '#ffcc00', type: 'anillo', inc: 0.06, hasRings: true, ringColor: '#ffaa00', ringSize: 2.5 }, 
+                { r: 0.80, dist: 31.5, speed: 0.0025, base: '#00ccff', detail: '#ffffff', type: 'hielo', inc: 0.20 },
+                { r: 0.90, dist: 35.0, speed: -0.0013, base: '#111111', detail: '#ff0055', type: 'cyber', inc: -0.18 }, 
+                { r: 1.90, dist: 39.5, speed: 0.0009, base: '#ff5500', detail: '#ff22aa', type: 'supergas', inc: 0.10 }, 
+                { r: 0.78, dist: 43.5, speed: -0.0018, base: '#7700aa', detail: '#00ffcc', type: 'cristal', inc: -0.05 },
+                { r: 1.60, dist: 47.5, speed: 0.0007, base: '#005544', detail: '#33ff99', type: 'anillo', inc: 0.14, hasRings: true, ringColor: '#33ffaa', ringSize: 2.1 }, 
+                { r: 0.72, dist: 51.0, speed: 0.0028, base: '#990044', detail: '#ff66aa', type: 'rocoso', inc: -0.22 },
+                { r: 1.05, dist: 54.5, speed: -0.0006, base: '#220044', detail: '#00ffff', type: 'cristal', inc: 0.08 },
+                { r: 1.50, dist: 58.5, speed: 0.0011, base: '#704214', detail: '#ffdd99', type: 'gas', inc: 0.17 },
+                { r: 0.92, dist: 62.0, speed: -0.0014, base: '#05331a', detail: '#33ff33', type: 'cyber', inc: -0.09 },
+                { r: 0.75, dist: 65.5, speed: 0.0020, base: '#444444', detail: '#ffffff', type: 'rocoso', inc: 0.26 },
+                { r: 2.00, dist: 69.5, speed: -0.0008, base: '#770077', detail: '#ff00ff', type: 'anillo', inc: -0.11, hasRings: true, ringColor: '#ff00ff', ringSize: 2.4 }, 
+                { r: 0.86, dist: 73.5, speed: 0.0022, base: '#441100', detail: '#ff6600', type: 'volcan', inc: 0.15 },
+                { r: 0.98, dist: 77.0, speed: -0.0016, base: '#003344', detail: '#00ffaa', type: 'cyber', inc: -0.20 },
+                { r: 1.80, dist: 81.5, speed: 0.0010, base: '#554433', detail: '#ffcc99', type: 'gas', inc: 0.05 }, 
+                { r: 0.79, dist: 85.0, speed: -0.0025, base: '#114422', detail: '#66ff66', type: 'rocoso', inc: -0.13 },
+                { r: 1.08, dist: 88.5, speed: 0.0013, base: '#330066', detail: '#cc66ff', type: 'cristal', inc: 0.22 },
+                { r: 1.40, dist: 92.0, speed: -0.0007, base: '#555555', detail: '#dddddd', type: 'anillo', inc: -0.07, hasRings: true, ringColor: '#ffffff', ringSize: 1.9 },
+                { r: 0.71, dist: 95.5, speed: 0.0030, base: '#660022', detail: '#ff99bb', type: 'hielo', inc: 0.19 },
+                { r: 0.88, dist: 99.0, speed: -0.0012, base: '#222244', detail: '#00ccff', type: 'cyber', inc: -0.10 }
+            ];
+
+            planetData.forEach((data, index) => {
+                const group = new THREE.Group();
+                const tex = generatePlanetTexture(data.base, data.detail, data.type, data.name || "");
+                
+                const mesh = new THREE.Mesh(new THREE.SphereGeometry(data.r, 64, 64), new THREE.MeshStandardMaterial({
+                    map: tex, roughness: 0.45, metalness: data.type === 'cyber' ? 0.85 : 0.05, bumpScale: 0.05
+                }));
+                
+                if(index === 1) {
+                    mesh.name = "sofia_core";
+                } else {
+                    mesh.name = "regular_planet_" + index;
+                }
+                group.add(mesh);
+
+                if(index === 1) {
+                    const glow = new THREE.Mesh(new THREE.SphereGeometry(data.r * 1.25, 32, 32), new THREE.MeshBasicMaterial({ color: '#ff00aa', transparent: true, opacity: 0.15, wireframe: true }));
+                    group.add(glow);
+                }
+
+                if(data.hasRings) {
+                    const ringGeo = new THREE.RingGeometry(data.r * 1.3, data.r * data.ringSize, 64);
+                    ringGeo.rotateX(Math.PI / 2);
+                    const ringMat = new THREE.MeshBasicMaterial({ color: data.ringColor, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+                    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                    group.add(ringMesh);
+                }
+
+                group.position.x = data.dist; scene.add(group);
+                
+                const phraseIndex = index > 1 ? index - 2 : index;
+                const assignedPhrase = planetDedications[phraseIndex % planetDedications.length];
+
+                planets.push({ 
+                    mesh: group, 
+                    dist: data.dist, 
+                    speed: data.speed, 
+                    angle: Math.random()*6, 
+                    inc: data.inc, 
+                    radius: data.r,
+                    phrase: assignedPhrase,
+                    id: index
+                });
+                if(index === 1) targetPlanet = planets[1]; 
+            });
+        }
+
+        function getVectorizedPaths(phrase) {
+            const points = [];
+            const scale = 0.55; 
+            const density = 28;
+
+            function lerpSegment(x1, y1, x2, y2) {
+                for (let i = 0; i <= density; i++) {
+                    const t = i / density;
+                    points.push({
+                        x: (x1 + (x2 - x1) * t) * scale,
+                        y: 13.5 + (y1 + (y2 - y1) * t) * scale
+                    });
+                }
+            }
+
+            if (phrase === "SOFÍA") {
+                let sX = -4.0; 
+                lerpSegment(sX+2, 4, sX, 4); lerpSegment(sX, 4, sX, 2);
+                lerpSegment(sX, 2, sX+2, 2); lerpSegment(sX+2, 2, sX+2, 0); lerpSegment(sX+2, 0, sX, 0);
+                sX += 3.2;
+                lerpSegment(sX, 0, sX, 4); lerpSegment(sX, 4, sX+2, 4);
+                lerpSegment(sX+2, 4, sX+2, 0); lerpSegment(sX+2, 0, sX, 0);
+                sX += 3.2;
+                lerpSegment(sX, 0, sX, 4); lerpSegment(sX, 4, sX+2, 4); lerpSegment(sX, 2, sX+1.5, 2);
+                sX += 3.2;
+                lerpSegment(sX+1, 0, sX+1, 3.2); lerpSegment(sX+1, 4.2, sX+1, 4.4); 
+                sX += 3.0;
+                lerpSegment(sX, 0, sX+1, 4); lerpSegment(sX+1, 4, sX+2, 0); lerpSegment(sX+0.3, 1.5, sX+1.7, 1.5);
+            } else if (phrase === "TE AMO") {
+                let sX = -5.0; 
+                lerpSegment(sX, 4, sX+2, 4); lerpSegment(sX+1, 4, sX+1, 0);
+                sX += 2.8;
+                lerpSegment(sX+2, 4, sX, 4); lerpSegment(sX, 4, sX, 0); lerpSegment(sX, 0, sX+2, 0); lerpSegment(sX, 2, sX+1.5, 2);
+                sX += 3.8; 
+                lerpSegment(sX, 0, sX+1, 4); lerpSegment(sX+1, 4, sX+2, 0); lerpSegment(sX+0.3, 1.5, sX+1.7, 1.5);
+                sX += 2.8;
+                lerpSegment(sX, 0, sX, 4); lerpSegment(sX, 4, sX+1, 2); lerpSegment(sX+1, 2, sX+2, 4); lerpSegment(sX+2, 4, sX+2, 0);
+                sX += 2.8;
+                lerpSegment(sX, 0, sX, 4); lerpSegment(sX, 4, sX+2, 4); lerpSegment(sX+2, 4, sX+2, 0); lerpSegment(sX+2, 0, sX, 0);
+            }
+            return points;
+        }
+
+        function triggerWordBurst(phrase) {
+            const colors = ['#00ffcc', '#ff00aa', '#00ffff', '#ff0055', '#ffffff'];
+            const vectorTargets = getVectorizedPaths(phrase);
+            const phraseOffsetX = (phrase === "SOFÍA") ? -5.0 : 5.5;
+
+            vectorTargets.forEach((targetCoord) => {
+                const starMesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.11, 6, 6),
+                    new THREE.MeshBasicMaterial({ 
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        transparent: true, opacity: 1.0
+                    })
+                );
+                
+                starMesh.position.set(0, 0, 0);
+                scene.add(starMesh);
+
+                textBurstParticles.push({
+                    mesh: starMesh,
+                    target: new THREE.Vector3(targetCoord.x + phraseOffsetX, targetCoord.y, (Math.random() - 0.5) * 0.05),
+                    gathered: false,
+                    speed: 0.06 + Math.random() * 0.05, 
+                    life: 1.0,
+                    holdTime: 5000, 
+                    createdAt: Date.now()
+                });
+            });
+        }
+
+        function buildConstellationLines() {
+            constellationLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#ff00aa', transparent: true, opacity: 0, linewidth: 2 }));
+            constellationLines.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
+            scene.add(constellationLines);
+        }
+
+        function buildFloatingNameRing() {
+            const puntos = [];
+            for(let i=0; i<450; i++) {
+                const theta = (i / 450) * Math.PI * 2; const dist = 1.5 + Math.random()*0.25;
+                puntos.push(Math.cos(theta)*dist, (Math.random()-0.5)*0.15, Math.sin(theta)*dist);
+            }
+            const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(puntos, 3));
+            nameParticles = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#ffffff', size: 0.04, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, map: createGlowTexture('#ffffff', '#ff00aa') }));
+            if(targetPlanet) targetPlanet.mesh.add(nameParticles);
+        }
+
+        function setupInputs() {
+            window.addEventListener('pointerdown', (e) => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(scene.children, true);
+                
+                const hitAlert = intersects.find(h => h.object.name === "hologram_alert");
+                if (hitAlert && eventTriggered) {
+                    const uv = hitAlert.uv; const pixelX = uv.x * 512; const pixelY = (1 - uv.y) * 256; 
+                    if (pixelX >= 455 && pixelX <= 500 && pixelY >= 10 && pixelY <= 50) { resetTargetTracking(); return; }
+                }
+
+                const hitBlackHole = intersects.find(h => h.object.name === "black_hole_target");
+                if (hitBlackHole) {
+                    bhClickCount++;
+                    if (bhClickCount === 1) {
+                        triggerWordBurst("SOFÍA");
+                    } else if (bhClickCount === 2) {
+                        triggerWordBurst("TE AMO");
+                        bhClickCount = 0; 
+                    }
+                    return;
+                }
+
+                const hitSofia = intersects.find(h => h.object.name === "sofia_core");
+                if(hitSofia) {
+                    planetSpinSpeed = 0.07; interactionToast.style.display = 'block';
+                    if(nameParticles) nameParticles.material.size = 0.09;
+                    setTimeout(() => {
+                        planetSpinSpeed = 0.005; interactionToast.style.display = 'none';
+                        if(nameParticles) nameParticles.material.size = 0.04;
+                    }, 2500);
+                    return;
+                }
+
+                // NUEVO MANEJO DE SELECCIÓN Y ENFOQUE CONTINUO PARA LOS PLANETAS REGULARES
+                const hitRegularPlanet = intersects.find(h => h.object.name && h.object.name.startsWith("regular_planet_"));
+                if (hitRegularPlanet) {
+                    const nameStr = hitRegularPlanet.object.name;
+                    const pIdx = parseInt(nameStr.replace("regular_planet_", ""));
+                    
+                    const pData = planets.find(p => p.id === pIdx);
+                    if (pData) {
+                        activeSelectedPlanet = pData;
+                        lockCameraOnSelected = true; // Activa el seguimiento de cámara continuo
+
+                        planetTitle.innerText = `SECTOR PLANETARIO - DATA [ID: 0${pData.id}]`;
+                        planetText.innerText = pData.phrase;
+                        planetMessageBox.style.display = 'block';
+                    }
+                }
+            });
+
+            radarBtn.addEventListener('click', () => {
+                lockCameraOnPlanet = !lockCameraOnPlanet;
+                if(lockCameraOnPlanet) {
+                    radarBtn.innerText = "🛑 DETENER SEGUIMIENTO"; radarBtn.style.color = "#ff0055"; radarBtn.style.borderColor = "#ff0055";
+                    eventTriggered = false; cameraReachedTarget = false;
+                    // Desactivar el enfoque de otros planetas si se activa Sofia
+                    lockCameraOnSelected = false; activeSelectedPlanet = null;
+                    planetMessageBox.style.display = 'none';
+                } else { resetTargetTracking(); }
+            });
+
+            transmissionBtn.addEventListener('click', () => { messageBox.style.display = 'block'; });
+            closeMsgBtn.addEventListener('click', () => { messageBox.style.display = 'none'; });
+            
+            // EL BOTÓN DE CERRAR RESTABLECE EL ENFOQUE DE LA CÁMARA
+            closePlanetBtn.addEventListener('click', () => { 
+                planetMessageBox.style.display = 'none'; 
+                lockCameraOnSelected = false;
+                activeSelectedPlanet = null;
+            });
+        }
+
+        function resetTargetTracking() {
+            lockCameraOnPlanet = false; eventTriggered = false; cameraReachedTarget = false;
+            eventOverlay.style.opacity = '0';
+            if (alertHologramPlane) alertHologramPlane.material.opacity = 0;
+            if (constellationLines) { constellationLines.material.opacity = 0; }
+            radarBtn.innerText = "🪐 LOCALIZAR PLANETA SOFÍA"; radarBtn.style.color = "#00ffcc"; radarBtn.style.borderColor = "#00ffcc";
+        }
+
+        function updatePhysics() {
+            const isMobile = window.innerWidth < 768;
+
+            // 1. Seguimiento prioritario de Planeta Sofía
+            if (lockCameraOnPlanet && targetPlanet) {
+                const pPos = new THREE.Vector3(); targetPlanet.mesh.getWorldPosition(pPos);
+
+                if (!cameraReachedTarget) {
+                    const camZOffset = isMobile ? 4.5 : 3.8; 
+                    const targetCamPos = pPos.clone().add(new THREE.Vector3(0, 0.6, camZOffset)); 
+                    camera.position.lerp(targetCamPos, 0.05); 
+                    if (camera.position.distanceTo(targetCamPos) < 0.2) cameraReachedTarget = true; 
+                }
+                controls.target.lerp(pPos, 0.05);
+
+                if(alertHologramPlane) {
+                    if(isMobile) {
+                        alertHologramPlane.scale.set(0.75, 0.75, 1);
+                        alertHologramPlane.position.copy(pPos).add(new THREE.Vector3(0, 1.5, 0.2));
+                    } else {
+                        alertHologramPlane.scale.set(1, 1, 1);
+                        alertHologramPlane.position.copy(pPos).add(new THREE.Vector3(-2.8, 0.2, 0.4));
+                    }
+                    alertHologramPlane.lookAt(camera.position); 
+                }
+
+                if(!eventTriggered) { eventTriggered = true; triggerTripleComboEvent(pPos); }
+            }
+            // 2. NUEVO: Seguimiento continuo y dinámico para los planetas con mensajes al darles click
+            else if (lockCameraOnSelected && activeSelectedPlanet) {
+                const currentPlanetPos = new THREE.Vector3();
+                activeSelectedPlanet.mesh.getWorldPosition(currentPlanetPos);
+
+                // Mantiene la cámara a una distancia relativa óptima calculada en base a su radio aumentado
+                const offsetDist = activeSelectedPlanet.radius * (isMobile ? 4.0 : 3.2);
+                const targetCamPos = currentPlanetPos.clone().add(new THREE.Vector3(0, activeSelectedPlanet.radius * 0.4, offsetDist));
+                
+                camera.position.lerp(targetCamPos, 0.05);
+                controls.target.lerp(currentPlanetPos, 0.05);
+            }
+        }
+
+        function triggerTripleComboEvent(planetPos) {
+            eventOverlay.style.opacity = '1'; 
+            if (alertHologramPlane) alertHologramPlane.material.opacity = 0.95; 
+            if (constellationLines) {
+                const lPos = constellationLines.geometry.attributes.position.array;
+                lPos[0] = 0; lPos[1] = 0; lPos[2] = 0; lPos[3] = planetPos.x; lPos[4] = planetPos.y; lPos[5] = planetPos.z;
+                lPos[6] = planetPos.x; lPos[7] = planetPos.y; lPos[8] = planetPos.z; lPos[9] = 9.8; lPos[10] = 0; lPos[11] = 0;
+                lPos[12] = planetPos.x; lPos[13] = planetPos.y; lPos[14] = planetPos.z;
+                if(comets[0].mesh) { lPos[15] = comets[0].mesh.position.x; lPos[16] = comets[0].mesh.position.y; lPos[17] = comets[0].mesh.position.z; }
+                constellationLines.geometry.attributes.position.needsUpdate = true;
+                constellationLines.material.opacity = 0.7;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate); updatePhysics();
+            const time = Date.now();
+
+            if (blackHoleDisk) blackHoleDisk.rotation.y += 0.022;
+            if (blackHoleCore) blackHoleCore.rotation.y -= 0.005;
+            if (asteroidBelt) asteroidBelt.rotation.y += 0.0007;
+            if (nebulaGas) nebulaGas.rotation.y = -time * 0.00001;
+
+            if(nameParticles) { nameParticles.rotation.y -= 0.004; nameParticles.rotation.x = Math.sin(time * 0.001) * 0.04; }
+
+            if (galaxyPoints) {
+                const posArr = galaxyGeometry.attributes.position.array;
+                for(let i=0; i<posArr.length; i+=3) {
+                    const x = posArr[i]; const z = posArr[i+2]; const r = Math.sqrt(x*x + z*z);
+                    const currentAngle = Math.atan2(z, x) + (0.012 / (r * 0.15 + 0.1));
+                    posArr[i] = Math.cos(currentAngle) * r; posArr[i+2] = Math.sin(currentAngle) * r;
+                }
+                galaxyGeometry.attributes.position.needsUpdate = true;
+            }
+
+            planets.forEach((p, idx) => {
+                p.angle += p.speed; p.mesh.position.x = Math.cos(p.angle) * p.dist; p.mesh.position.y = Math.sin(p.angle) * p.dist * p.inc; p.mesh.position.z = Math.sin(p.angle) * p.dist;
+                if(idx === 1) { p.mesh.rotation.y += planetSpinSpeed; } else { p.mesh.rotation.y += 0.007; }
+            });
+
+            if(eventTriggered && targetPlanet && constellationLines) {
+                const pPos = new THREE.Vector3(); targetPlanet.mesh.getWorldPosition(pPos);
+                const lPos = constellationLines.geometry.attributes.position.array;
+                lPos[3] = pPos.x; lPos[4] = pPos.y; lPos[5] = pPos.z; lPos[6] = pPos.x; lPos[7] = pPos.y; lPos[8] = pPos.z; lPos[12] = pPos.x; lPos[13] = pPos.y; lPos[14] = pPos.z;
+                if(comets[0].mesh) { lPos[15] = comets[0].mesh.position.x; lPos[16] = comets[0].mesh.position.y; lPos[17] = comets[0].mesh.position.z; }
+                constellationLines.geometry.attributes.position.needsUpdate = true;
+            }
+
+            comets.forEach(comet => {
+                if (comet.mesh) {
+                    comet.angle += comet.speed;
+                    comet.mesh.position.set(Math.cos(comet.angle) * comet.a, Math.sin(comet.angle) * comet.yPos * 1.5, Math.sin(comet.angle) * comet.b);
+                    comet.positions.push(comet.mesh.position.clone());
+                    if (comet.positions.length > comet.maxTail) comet.positions.shift();
+                    
+                    const tArr = comet.geoTail.attributes.position.array;
+                    for (let i = 0; i < comet.positions.length; i++) {
+                        const tIdx = i * 3;
+                        tArr[tIdx] = comet.positions[i].x + (Math.random() - 0.5) * 0.12;
+                        tArr[tIdx + 1] = comet.positions[i].y + (Math.random() - 0.5) * 0.12;
+                        tArr[tIdx + 2] = comet.positions[i].z + (Math.random() - 0.5) * 0.12;
+                    }
+                    comet.geoTail.attributes.position.needsUpdate = true;
+                }
+            });
+
+            for (let i = textBurstParticles.length - 1; i >= 0; i--) {
+                const p = textBurstParticles[i];
+                const elapsed = time - p.createdAt;
+
+                if (!p.gathered) {
+                    p.mesh.position.lerp(p.target, p.speed);
+                    if (p.mesh.position.distanceTo(p.target) < 0.02) { p.gathered = true; }
+                } else {
+                    p.mesh.position.y = p.target.y + Math.sin(time * 0.002 + p.target.x) * 0.02;
+                }
+
+                if (elapsed > p.holdTime) {
+                    p.life -= 0.015; p.mesh.material.opacity = p.life;
+                    if (p.life <= 0) {
+                        scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose();
+                        textBurstParticles.splice(i, 1);
+                    }
+                }
+            }
+
+            controls.update(); renderer.render(scene, camera);
+        }
+
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+
+        startButton.addEventListener('click', () => {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none'; anomalyScreen.style.display = 'flex';
+                setTimeout(() => {
+                    anomalyScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        anomalyScreen.style.display = 'none';
+                        document.getElementById('hud').style.display = 'block'; document.getElementById('reticula').style.display = 'block'; document.getElementById('info').style.display = 'block';
+                        radarBtn.style.display = 'block'; transmissionBtn.style.display = 'block'; 
+                    }, 500);
+                }, 4000);
+            }, 500);
+            init(); audio.play().catch(e => console.log("Bloqueo de seguridad de audio activo"));
+        });
+    </script>
+</body>
+</html>
